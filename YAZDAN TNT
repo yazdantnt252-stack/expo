@@ -1,0 +1,196 @@
+// App.js
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  Dimensions,
+} from "react-native";
+
+const { width, height } = Dimensions.get("window");
+
+export default function App() {
+  const [playerX, setPlayerX] = useState(width / 2);
+  const [playerY, setPlayerY] = useState(height - 120);
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [running, setRunning] = useState(false);
+  const [herbs, setHerbs] = useState([]);
+  const [obstacles, setObstacles] = useState([]);
+
+  // حرکت سبزی‌ها و موانع
+  useEffect(() => {
+    if (!running) return;
+
+    const interval = setInterval(() => {
+      // سبزی جدید
+      if (Math.random() < 0.1) {
+        setHerbs((prev) => [
+          ...prev,
+          { x: Math.random() * width, y: 0, id: Date.now() },
+        ]);
+      }
+      // مانع جدید
+      if (Math.random() < 0.05) {
+        setObstacles((prev) => [
+          ...prev,
+          { x: Math.random() * width, y: 0, id: Date.now() },
+        ]);
+      }
+
+      // حرکت و بررسی برخورد
+      setHerbs((prev) =>
+        prev
+          .map((h) => ({ ...h, y: h.y + 10 }))
+          .filter((h) => {
+            const hit =
+              Math.abs(h.x - playerX) < 40 && Math.abs(h.y - playerY) < 40;
+            if (hit) setScore((s) => s + 10);
+            return !hit && h.y < height;
+          })
+      );
+
+      setObstacles((prev) =>
+        prev
+          .map((o) => ({ ...o, y: o.y + 15 }))
+          .filter((o) => {
+            const hit =
+              Math.abs(o.x - playerX) < 40 && Math.abs(o.y - playerY) < 40;
+            if (hit) {
+              setLives((l) => l - 1);
+              if (lives - 1 <= 0) {
+                setRunning(false);
+              }
+            }
+            return !hit && o.y < height;
+          })
+      );
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [running, playerX, playerY, lives]);
+
+  // لمس برای حرکت
+  const handleTouch = (e) => {
+    const touchX = e.nativeEvent.locationX;
+    setPlayerX(touchX);
+  };
+
+  return (
+    <TouchableWithoutFeedback onPressIn={handleTouch}>
+      <View style={styles.container}>
+        <Text style={styles.title}>🥛 دوغ لار 🥗</Text>
+        <Text style={styles.info}>امتیاز: {score} | جان: {lives}</Text>
+
+        {/* بازیکن */}
+        <View
+          style={[
+            styles.player,
+            { left: playerX - 25, top: playerY - 25 },
+          ]}
+        />
+
+        {/* سبزی‌ها */}
+        {herbs.map((h) => (
+          <View
+            key={h.id}
+            style={[styles.herb, { left: h.x, top: h.y }]}
+          />
+        ))}
+
+        {/* موانع */}
+        {obstacles.map((o) => (
+          <View
+            key={o.id}
+            style={[styles.obstacle, { left: o.x, top: o.y }]}
+          />
+        ))}
+
+        {/* دکمه شروع/ادامه */}
+        {!running && (
+          <View style={styles.overlay}>
+            <Text style={styles.overlayText}>
+              {lives <= 0 ? "باختی! دوباره شروع کن" : "برای شروع لمس کن"}
+            </Text>
+            <Text
+              style={styles.startButton}
+              onPress={() => {
+                setScore(0);
+                setLives(3);
+                setHerbs([]);
+                setObstacles([]);
+                setRunning(true);
+              }}
+            >
+              ▶ شروع
+            </Text>
+          </View>
+        )}
+      </View>
+    </TouchableWithoutFeedback>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#e8f7ff",
+  },
+  title: {
+    fontSize: 28,
+    textAlign: "center",
+    marginTop: 40,
+  },
+  info: {
+    fontSize: 18,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  player: {
+    width: 50,
+    height: 50,
+    backgroundColor: "#f8fbff",
+    borderRadius: 25,
+    borderWidth: 3,
+    borderColor: "#9ad3a5",
+    position: "absolute",
+  },
+  herb: {
+    width: 20,
+    height: 20,
+    backgroundColor: "#6bb26a",
+    borderRadius: 10,
+    position: "absolute",
+  },
+  obstacle: {
+    width: 30,
+    height: 30,
+    backgroundColor: "#ff9a9a",
+    borderRadius: 5,
+    position: "absolute",
+  },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overlayText: {
+    fontSize: 20,
+    color: "#fff",
+    marginBottom: 20,
+  },
+  startButton: {
+    fontSize: 22,
+    color: "#fff",
+    backgroundColor: "#4caf50",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+});
