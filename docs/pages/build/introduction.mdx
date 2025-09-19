@@ -1,60 +1,196 @@
----
-title: EAS Build
-sidebar_title: Introduction
-hideTOC: true
-description: EAS Build is a hosted service for building app binaries for your Expo and React Native projects.
----
+// App.js
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  Dimensions,
+} from "react-native";
 
-import { Cube01Icon } from '@expo/styleguide-icons/outline/Cube01Icon';
+const { width, height } = Dimensions.get("window");
 
-import { BoxLink } from '~/ui/components/BoxLink';
+export default function App() {
+  const [playerX, setPlayerX] = useState(width / 2);
+  const [playerY, setPlayerY] = useState(height - 120);
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [running, setRunning] = useState(false);
+  const [herbs, setHerbs] = useState([]);
+  const [obstacles, setObstacles] = useState([]);
 
-**EAS Build** is a hosted service for building app binaries for your Expo and React Native projects.
+  // حرکت سبزی‌ها و موانع
+  useEffect(() => {
+    if (!running) return;
 
-It makes building your apps for distribution simple and easy to automate by providing defaults that work well for Expo and React Native projects out of the box, and by handling your app signing credentials for you (if you wish). It also makes sharing builds with your team easier than ever with [internal distribution](/build/internal-distribution/) (using ad hoc and/or enterprise "universal" provisioning), deeply integrates with EAS Submit for app store submissions, and has first-class support for the [`expo-updates`](/build/updates/) library.
+    const interval = setInterval(() => {
+      // سبزی جدید
+      if (Math.random() < 0.1) {
+        setHerbs((prev) => [
+          ...prev,
+          { x: Math.random() * width, y: 0, id: Date.now() },
+        ]);
+      }
+      // مانع جدید
+      if (Math.random() < 0.05) {
+        setObstacles((prev) => [
+          ...prev,
+          { x: Math.random() * width, y: 0, id: Date.now() },
+        ]);
+      }
 
-It's designed to work for any native project, whether or not you use Expo and React Native. It's the fastest way to get from `npx create-expo-app` or `npx @react-native-community/cli@latest init` to app stores.
+      // حرکت و بررسی برخورد
+      setHerbs((prev) =>
+        prev
+          .map((h) => ({ ...h, y: h.y + 10 }))
+          .filter((h) => {
+            const hit =
+              Math.abs(h.x - playerX) < 40 && Math.abs(h.y - playerY) < 40;
+            if (hit) setScore((s) => s + 10);
+            return !hit && h.y < height;
+          })
+      );
 
-### Get started
+      setObstacles((prev) =>
+        prev
+          .map((o) => ({ ...o, y: o.y + 15 }))
+          .filter((o) => {
+            const hit =
+              Math.abs(o.x - playerX) < 40 && Math.abs(o.y - playerY) < 40;
+            if (hit) {
+              setLives((l) => l - 1);
+              if (lives - 1 <= 0) {
+                setRunning(false);
+              }
+            }
+            return !hit && o.y < height;
+          })
+      );
+    }, 200);
 
-<BoxLink
-  title="Create your first build"
-  description="It should only take a few minutes in total to get up and running for iOS and/or Android."
-  href="/build/setup"
-  Icon={Cube01Icon}
-/>
+    return () => clearInterval(interval);
+  }, [running, playerX, playerY, lives]);
 
-<BoxLink
-  title="Share your apps with internal testers"
-  description="EAS Build can help share preview builds of your app with a single URL."
-  href="/build/internal-distribution"
-  Icon={Cube01Icon}
-/>
+  // لمس برای حرکت
+  const handleTouch = (e) => {
+    const touchX = e.nativeEvent.locationX;
+    setPlayerX(touchX);
+  };
 
-<BoxLink
-  title="Automate submissions"
-  description="Learn how you can have the service take your successful builds and handle uploading them to app stores for you automatically."
-  href="/build/automate-submissions"
-  Icon={Cube01Icon}
-/>
+  return (
+    <TouchableWithoutFeedback onPressIn={handleTouch}>
+      <View style={styles.container}>
+        <Text style={styles.title}>🥛 دوغ لار 🥗</Text>
+        <Text style={styles.info}>امتیاز: {score} | جان: {lives}</Text>
 
-<BoxLink
-  title="App version management"
-  description="Automate version bumps so you never have to think about them again."
-  href="/build-reference/app-versions"
-  Icon={Cube01Icon}
-/>
+        {/* بازیکن */}
+        <View
+          style={[
+            styles.player,
+            { left: playerX - 25, top: playerY - 25 },
+          ]}
+        />
 
-<BoxLink
-  title="Run builds locally or on your own infrastructure"
-  description="EAS Build is a hosted service, but you can also run it on your own machine, for example, to debug or to comply with any company security policies."
-  href="/build-reference/local-builds"
-  Icon={Cube01Icon}
-/>
+        {/* سبزی‌ها */}
+        {herbs.map((h) => (
+          <View
+            key={h.id}
+            style={[styles.herb, { left: h.x, top: h.y }]}
+          />
+        ))}
 
-<BoxLink
-  title="Limitations"
-  description="EAS Build is new and rapidly evolving, so we recommend getting familiar with the current limitations."
-  href="/build-reference/limitations"
-  Icon={Cube01Icon}
-/>
+        {/* موانع */}
+        {obstacles.map((o) => (
+          <View
+            key={o.id}
+            style={[styles.obstacle, { left: o.x, top: o.y }]}
+          />
+        ))}
+
+        {/* دکمه شروع/ادامه */}
+        {!running && (
+          <View style={styles.overlay}>
+            <Text style={styles.overlayText}>
+              {lives <= 0 ? "باختی! دوباره شروع کن" : "برای شروع لمس کن"}
+            </Text>
+            <Text
+              style={styles.startButton}
+              onPress={() => {
+                setScore(0);
+                setLives(3);
+                setHerbs([]);
+                setObstacles([]);
+                setRunning(true);
+              }}
+            >
+              ▶ شروع
+            </Text>
+          </View>
+        )}
+      </View>
+    </TouchableWithoutFeedback>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#e8f7ff",
+  },
+  title: {
+    fontSize: 28,
+    textAlign: "center",
+    marginTop: 40,
+  },
+  info: {
+    fontSize: 18,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  player: {
+    width: 50,
+    height: 50,
+    backgroundColor: "#f8fbff",
+    borderRadius: 25,
+    borderWidth: 3,
+    borderColor: "#9ad3a5",
+    position: "absolute",
+  },
+  herb: {
+    width: 20,
+    height: 20,
+    backgroundColor: "#6bb26a",
+    borderRadius: 10,
+    position: "absolute",
+  },
+  obstacle: {
+    width: 30,
+    height: 30,
+    backgroundColor: "#ff9a9a",
+    borderRadius: 5,
+    position: "absolute",
+  },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overlayText: {
+    fontSize: 20,
+    color: "#fff",
+    marginBottom: 20,
+  },
+  startButton: {
+    fontSize: 22,
+    color: "#fff",
+    backgroundColor: "#4caf50",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+});
